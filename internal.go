@@ -1,4 +1,4 @@
-package bloom
+package bip37
 
 import (
 	"github.com/sammy00/murmur3"

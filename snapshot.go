@@ -1,4 +1,4 @@
-package bloom
+package bip37
 
 type Snapshot struct {
 	Bits      []byte

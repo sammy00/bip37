@@ -1,12 +1,10 @@
-package bloom_test
+package bip37_test
 
 import (
 	"bytes"
 	"testing"
 
-	"github.com/btcsuite/btcd/wire"
-	btcbloom "github.com/btcutil/bloom"
-	"github.com/sammy00/bloom"
+	"github.com/sammy00/bip37"
 )
 
 const (
@@ -19,15 +17,15 @@ func TestFilter_Add(t *testing.T) {
 		data   []byte
 		expect []byte // the expected bits array in snapshot
 	}{
-		{bloom.Hexlify("99108ad8ed9bb6274d3980bab5a85c048f0950c8"), nil},
-		{bloom.Hexlify("19108ad8ed9bb6274d3980bab5a85c048f0950c8"), nil},
-		{bloom.Hexlify("b5a2c786d9ef4658287ced5914b37a1b4aa32eee"), nil},
-		{bloom.Hexlify("b9300670b4c5366e95b2699e8b18bc75e5f729c5"), nil},
+		{bip37.Hexlify("99108ad8ed9bb6274d3980bab5a85c048f0950c8"), nil},
+		{bip37.Hexlify("19108ad8ed9bb6274d3980bab5a85c048f0950c8"), nil},
+		{bip37.Hexlify("b5a2c786d9ef4658287ced5914b37a1b4aa32eee"), nil},
+		{bip37.Hexlify("b9300670b4c5366e95b2699e8b18bc75e5f729c5"), nil},
 	}
 
 	for i, c := range testCases {
-		filter := bloom.New(3, C, Tweak, 0.01)
-		btc := btcbloom.NewFilter(3, Tweak, 0.01, wire.BloomUpdateAll)
+		filter := bip37.New(3, C, Tweak, 0.01)
+		//btc := bloom.NewFilter(3, Tweak, 0.01, wire.BloomUpdateAll)
 
 		if err := filter.Add(c.data); nil != err {
 			t.Fatalf("#%d unexpected error: %v", i, err)

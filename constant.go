@@ -1,4 +1,4 @@
-package bloom
+package bip37
 
 const (
 	MaxFilterSize = 36000
