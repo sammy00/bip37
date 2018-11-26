@@ -5,5 +5,5 @@ type Snapshot struct {
 	HashFuncs uint32
 	C         uint32
 	Tweak     uint32
-	//Flags     UpdateType
+	Flags     BloomUpdateType
 }

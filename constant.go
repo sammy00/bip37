@@ -1,7 +1,14 @@
 package bip37
 
+type BloomUpdateType uint8
+
+const (
+	None BloomUpdateType = 0
+)
+
 const (
 	MaxFilterSize = 36000
 	MaxHashFuncs  = 50
-	//C             = 0xfba4c795
+	C            uint32 = 0xfba4c795
+	Tweak uint32= 0x00000005
 )
