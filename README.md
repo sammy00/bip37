@@ -1,2 +1,2 @@
-# bip37
-Implementation of BIP-0037
+# bloom
+Bloom Filter Implementation
