@@ -1,4 +1,4 @@
-package bip37
+package bloom
 
 import "errors"
 

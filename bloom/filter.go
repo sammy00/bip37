@@ -1,16 +1,21 @@
-package bip37
+package bloom
 
 import (
 	"math"
+	"sync"
+
+	"github.com/sammy00/bip37/command"
 )
 
 var ln2Sqr = math.Ln2 * math.Ln2
 
-type BloomFilter struct {
-	snapshot *Snapshot
+type Filter struct {
+	mtx      sync.Mutex
+	snapshot *command.Load
+	c        uint32
 }
 
-func (f *BloomFilter) Add(data []byte) error {
+func (f *Filter) Add(data []byte) error {
 	if nil == f.snapshot {
 		return ErrUninitialised
 	}
@@ -24,15 +29,15 @@ func (f *BloomFilter) Add(data []byte) error {
 	return nil
 }
 
-func (f *BloomFilter) Clear() {
+func (f *Filter) Clear() {
 	f.snapshot = nil
 }
 
-func (f *BloomFilter) Loaded() bool {
+func (f *Filter) Loaded() bool {
 	return nil == f.snapshot
 }
 
-func (f *BloomFilter) Match(data []byte) bool {
+func (f *Filter) Match(data []byte) bool {
 	//return f.match(data)
 	if nil == f.snapshot {
 		return false
@@ -48,28 +53,27 @@ func (f *BloomFilter) Match(data []byte) bool {
 	return true
 }
 
-func (f *BloomFilter) Recover(snapshot *Snapshot) *BloomFilter {
+func (f *Filter) Recover(snapshot *command.Load) *Filter {
 	f.snapshot = snapshot
 
 	return f
 }
 
-func (f *BloomFilter) Snapshot() *Snapshot {
+func (f *Filter) Snapshot() *command.Load {
 	return f.snapshot
 }
 
-func Load(snapshot *Snapshot) *BloomFilter {
-	return new(BloomFilter).Recover(snapshot)
+func Load(snapshot *command.Load) *Filter {
+	return new(Filter).Recover(snapshot)
 }
 
-//func New(N, C, tweak uint32, P float64) *BloomFilter {
-func New(N uint32, P float64, flags BloomUpdateType, 
-	tweaks ...uint32) *BloomFilter {
+func New(N uint32, P float64, flags UpdateType,
+	tweaks ...uint32) *Filter {
 	P = math.Max(1e-9, math.Min(P, 1))
 
 	// calculates S = -1/ln2Sqr*N*ln(P)/8
 	S := uint32(-1 / ln2Sqr * float64(N) * math.Log(P) / 8)
-	// normalize S to range (0, MaxBloomFilterSize]
+	// normalize S to range (0, MaxFilterSize]
 	S = MinUint32(S, MaxFilterSize)
 
 	// calculates the nHashFuncs = S*8/N*ln2
@@ -77,17 +81,17 @@ func New(N uint32, P float64, flags BloomUpdateType,
 	// normalize nHashFuncs to range (0, MaxHashFuncs)
 	nHashFuncs = MinUint32(nHashFuncs, MaxHashFuncs)
 
-	C,tweak:=C,Tweak
-	if len(tweaks)>2 {
-		C, tweak = tweaks[0],tweaks[1]		
+	c, tweak := C, Tweak
+	if len(tweaks) > 2 {
+		c, tweak = tweaks[0], tweaks[1]
 	}
 
-	return &BloomFilter{
-		snapshot: &Snapshot{
+	return &Filter{
+		snapshot: &command.Load{
 			Bits:      make([]byte, S),
 			HashFuncs: nHashFuncs,
-			C:         C,
 			Tweak:     tweak,
 		},
+		c: c,
 	}
 }

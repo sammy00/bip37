@@ -1,4 +1,4 @@
-package bip37
+package bloom
 
 import (
 	"github.com/sammy00/murmur3"
@@ -20,9 +20,9 @@ func (f *Filter) add(data []byte) error {
 }
 */
 
-func (f *BloomFilter) hash(idx uint32, data []byte) uint32 {
+func (f *Filter) hash(idx uint32, data []byte) uint32 {
 	// seed = idx*C + f.snapshot.Tweak
-	bitIdx := murmur3.SumUint32(data, idx*f.snapshot.C+f.snapshot.Tweak)
+	bitIdx := murmur3.SumUint32(data, idx*f.c+f.snapshot.Tweak)
 	return bitIdx % (uint32(len(f.snapshot.Bits)) << 3)
 }
 
