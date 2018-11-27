@@ -4,7 +4,6 @@ import (
 	"github.com/sammy00/murmur3"
 )
 
-/*
 func (f *Filter) add(data []byte) error {
 	if nil == f.snapshot {
 		return ErrUninitialised
@@ -18,7 +17,6 @@ func (f *Filter) add(data []byte) error {
 
 	return nil
 }
-*/
 
 func (f *Filter) hash(idx uint32, data []byte) uint32 {
 	// seed = idx*C + f.snapshot.Tweak
@@ -26,7 +24,6 @@ func (f *Filter) hash(idx uint32, data []byte) uint32 {
 	return bitIdx % (uint32(len(f.snapshot.Bits)) << 3)
 }
 
-/*
 func (f *Filter) match(data []byte) bool {
 	if nil == f.snapshot {
 		return false
@@ -41,4 +38,3 @@ func (f *Filter) match(data []byte) bool {
 
 	return true
 }
-*/

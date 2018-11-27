@@ -16,41 +16,31 @@ type Filter struct {
 }
 
 func (f *Filter) Add(data []byte) error {
-	if nil == f.snapshot {
-		return ErrUninitialised
-	}
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
 
-	for i := uint32(0); i < f.snapshot.HashFuncs; i++ {
-		bitIdx := f.hash(i, data)
-		// set the j(=bitIdx%8)-th bit of the k()=bitIdx/8)-th byte
-		f.snapshot.Bits[bitIdx>>3] |= (1 << (bitIdx & 0x0f))
-	}
-
-	return nil
+	return f.add(data)
 }
 
 func (f *Filter) Clear() {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
 	f.snapshot = nil
 }
 
 func (f *Filter) Loaded() bool {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
 	return nil == f.snapshot
 }
 
 func (f *Filter) Match(data []byte) bool {
-	//return f.match(data)
-	if nil == f.snapshot {
-		return false
-	}
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
 
-	for i := uint32(0); i < f.snapshot.HashFuncs; i++ {
-		bitIdx := f.hash(i, data)
-		if 0 == f.snapshot.Bits[bitIdx>>3]&(1<<(bitIdx&0x0f)) {
-			return false
-		}
-	}
-
-	return true
+	return f.match(data)
 }
 
 func (f *Filter) Recover(snapshot *command.Load) *Filter {
@@ -60,6 +50,9 @@ func (f *Filter) Recover(snapshot *command.Load) *Filter {
 }
 
 func (f *Filter) Snapshot() *command.Load {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
 	return f.snapshot
 }
 
