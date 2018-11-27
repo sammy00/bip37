@@ -4,14 +4,14 @@ import (
 	"math"
 	"sync"
 
-	"github.com/sammy00/bip37/command"
+	"github.com/sammy00/bip37/wire"
 )
 
 var ln2Sqr = math.Ln2 * math.Ln2
 
 type Filter struct {
 	mtx      sync.Mutex
-	snapshot *command.Load
+	snapshot *wire.FilterLoad
 	c        uint32
 }
 
@@ -43,20 +43,20 @@ func (f *Filter) Match(data []byte) bool {
 	return f.match(data)
 }
 
-func (f *Filter) Recover(snapshot *command.Load) *Filter {
+func (f *Filter) Recover(snapshot *wire.FilterLoad) *Filter {
 	f.snapshot = snapshot
 
 	return f
 }
 
-func (f *Filter) Snapshot() *command.Load {
+func (f *Filter) Snapshot() *wire.FilterLoad {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
 	return f.snapshot
 }
 
-func Load(snapshot *command.Load) *Filter {
+func Load(snapshot *wire.FilterLoad) *Filter {
 	return new(Filter).Recover(snapshot)
 }
 
@@ -80,7 +80,7 @@ func New(N uint32, P float64, flags UpdateType,
 	}
 
 	return &Filter{
-		snapshot: &command.Load{
+		snapshot: &wire.FilterLoad{
 			Bits:      make([]byte, S),
 			HashFuncs: nHashFuncs,
 			Tweak:     tweak,

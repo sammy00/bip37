@@ -1,14 +1,14 @@
-package command
+package wire
 
-type Add struct {
+type FilterAdd struct {
 	Data []byte
 }
 
-type Load struct {
+type FilterLoad struct {
 	Bits      []byte
 	HashFuncs uint32
 	Tweak     uint32
 	Flags     uint8
 }
 
-type Clear struct{}
+type FilterClear struct{}
