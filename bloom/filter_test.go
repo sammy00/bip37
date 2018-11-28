@@ -37,7 +37,7 @@ func TestFilter_Add(t *testing.T) {
 	}
 
 	for i, c := range testCases {
-		filter := bloom.New(3, 0.01, wire.UpdateAll, C, Tweak)
+		filter := bloom.New(3, 0.01, wire.UpdateAll, Tweak, C)
 
 		if err := filter.Add(c.data); nil != err {
 			t.Fatalf("#%d unexpected error: %v", i, err)
@@ -66,7 +66,7 @@ func TestFilter_Match(t *testing.T) {
 	}
 
 	for i, c := range testCases {
-		filter := bloom.New(3, 0.01, wire.UpdateAll, C, Tweak)
+		filter := bloom.New(3, 0.01, wire.UpdateAll, Tweak, C)
 		if c.added {
 			filter.Add(c.data)
 		}

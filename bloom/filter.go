@@ -78,8 +78,11 @@ func New(N uint32, P float64, flags wire.BloomUpdateType,
 	nHashFuncs = MinUint32(nHashFuncs, MaxHashFuncs)
 
 	c, tweak := C, Tweak
-	if len(tweaks) > 2 {
-		c, tweak = tweaks[0], tweaks[1]
+	if len(tweaks) >= 1 {
+		tweak = tweaks[0]
+	}
+	if len(tweaks) >= 2 {
+		c = tweaks[1]
 	}
 
 	return &Filter{
