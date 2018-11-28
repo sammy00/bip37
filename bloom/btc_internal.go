@@ -17,8 +17,6 @@ func (f *Filter) addOutPoint(txHash []byte, index uint32) error {
 	return f.add(append(txHash, i[:]...))
 }
 
-//func (f *Filter) maybeAddOutPoint(scriptClass, )
-
 func (f *Filter) matchTxAndUpdate(tx *btcutil.Tx) bool {
 	// check tx hash
 	txHash := tx.Hash()[:]
@@ -57,7 +55,7 @@ func (f *Filter) matchTxAndUpdate(tx *btcutil.Tx) bool {
 
 	// check OutPoint corresponding to tx input
 	for _, in := range tx.MsgTx().TxIn {
-		if f.match(serializeOutPoint(&in.PreviousOutPoint)) {
+		if f.match(marshalOutPoint(&in.PreviousOutPoint)) {
 			return true
 		}
 

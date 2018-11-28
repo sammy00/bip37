@@ -17,7 +17,7 @@ func (f *Filter) MatchOutPoint(out *btcwire.OutPoint) bool {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
-	return f.match(serializeOutPoint(out))
+	return f.match(marshalOutPoint(out))
 }
 
 func (f *Filter) MatchTx(tx *btcutil.Tx) bool {

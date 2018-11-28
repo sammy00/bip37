@@ -6,7 +6,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 )
 
-func serializeOutPoint(out *wire.OutPoint) []byte {
+func marshalOutPoint(out *wire.OutPoint) []byte {
 	var i [4]byte
 	binary.LittleEndian.PutUint32(i[:], out.Index)
 

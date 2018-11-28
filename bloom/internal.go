@@ -1,8 +1,6 @@
 package bloom
 
 import (
-	"fmt"
-
 	"github.com/sammy00/murmur3"
 )
 
@@ -13,7 +11,7 @@ func (f *Filter) add(data []byte) error {
 
 	for i := uint32(0); i < f.snapshot.HashFuncs; i++ {
 		bitIdx := f.hash(i, data)
-		fmt.Println(bitIdx)
+		//fmt.Println(bitIdx)
 		// set the j(=bitIdx%8)-th bit of the k()=bitIdx/8)-th byte
 		f.snapshot.Bits[bitIdx>>3] |= (1 << (bitIdx & 0x07))
 	}

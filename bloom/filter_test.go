@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sammy00/bip37/bloom"
+	"github.com/sammy00/bip37/wire"
 )
 
 const (
@@ -36,7 +37,7 @@ func TestFilter_Add(t *testing.T) {
 	}
 
 	for i, c := range testCases {
-		filter := bloom.New(3, 0.01, bloom.All, C, Tweak)
+		filter := bloom.New(3, 0.01, wire.UpdateAll, C, Tweak)
 
 		if err := filter.Add(c.data); nil != err {
 			t.Fatalf("#%d unexpected error: %v", i, err)
@@ -65,7 +66,7 @@ func TestFilter_Match(t *testing.T) {
 	}
 
 	for i, c := range testCases {
-		filter := bloom.New(3, 0.01, bloom.All, C, Tweak)
+		filter := bloom.New(3, 0.01, wire.UpdateAll, C, Tweak)
 		if c.added {
 			filter.Add(c.data)
 		}
