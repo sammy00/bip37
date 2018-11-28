@@ -63,7 +63,7 @@ func Load(snapshot *wire.FilterLoad) *Filter {
 	return new(Filter).Recover(snapshot)
 }
 
-func New(N uint32, P float64, flags UpdateType,
+func New(N uint32, P float64, flags wire.BloomUpdateType,
 	tweaks ...uint32) *Filter {
 	P = math.Max(1e-9, math.Min(P, 1))
 

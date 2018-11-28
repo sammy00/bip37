@@ -8,7 +8,7 @@ type FilterLoad struct {
 	Bits      []byte
 	HashFuncs uint32
 	Tweak     uint32
-	Flags     uint8
+	Flags     BloomUpdateType
 }
 
 type FilterClear struct{}

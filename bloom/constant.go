@@ -1,13 +1,5 @@
 package bloom
 
-type UpdateType uint8
-
-const (
-	None         UpdateType = 0
-	All          UpdateType = 1
-	P2PubKeyOnly            = 2
-)
-
 const (
 	MaxFilterSize        = 36000
 	MaxHashFuncs         = 50
