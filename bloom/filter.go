@@ -33,7 +33,7 @@ func (f *Filter) Loaded() bool {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
-	return nil == f.snapshot
+	return nil != f.snapshot
 }
 
 func (f *Filter) Match(data []byte) bool {
@@ -44,6 +44,9 @@ func (f *Filter) Match(data []byte) bool {
 }
 
 func (f *Filter) Recover(snapshot *wire.FilterLoad) *Filter {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
 	f.snapshot = snapshot
 
 	return f

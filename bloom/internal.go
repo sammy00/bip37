@@ -35,7 +35,7 @@ func (f *Filter) match(data []byte) bool {
 
 	for i := uint32(0); i < f.snapshot.HashFuncs; i++ {
 		bitIdx := f.hash(i, data)
-		if 0 == f.snapshot.Bits[bitIdx>>3]&(1<<(bitIdx&0x0f)) {
+		if 0 == f.snapshot.Bits[bitIdx>>3]&(1<<(bitIdx&0x07)) {
 			return false
 		}
 	}

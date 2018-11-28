@@ -52,3 +52,28 @@ func TestFilter_Add(t *testing.T) {
 		}
 	}
 }
+
+func TestFilter_Match(t *testing.T) {
+	testCases := []struct {
+		data  []byte
+		added bool
+	}{
+		{bloom.Hexlify("99108ad8ed9bb6274d3980bab5a85c048f0950c8"), true},
+		{bloom.Hexlify("19108ad8ed9bb6274d3980bab5a85c048f0950c8"), false},
+		{bloom.Hexlify("b5a2c786d9ef4658287ced5914b37a1b4aa32eee"), false},
+		{bloom.Hexlify("b9300670b4c5366e95b2699e8b18bc75e5f729c5"), true},
+	}
+
+	for i, c := range testCases {
+		filter := bloom.New(3, 0.01, bloom.All, C, Tweak)
+		if c.added {
+			filter.Add(c.data)
+		}
+
+		if c.added && !filter.Match(c.data) {
+			t.Fatalf("#%d failed to match added data: %x", i, c.data)
+		} else if !c.added && filter.Match(c.data) {
+			t.Fatalf("#%d unexpected false positive: %x", i, c.data)
+		}
+	}
+}
