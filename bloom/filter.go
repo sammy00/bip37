@@ -90,6 +90,7 @@ func New(N uint32, P float64, flags wire.BloomUpdateType,
 			Bits:      make([]byte, S),
 			HashFuncs: nHashFuncs,
 			Tweak:     tweak,
+			Flags:     flags,
 		},
 		c: c,
 	}
