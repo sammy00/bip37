@@ -57,6 +57,15 @@ func TestFilter_Add(t *testing.T) {
 	}
 }
 
+func TestFilter_Add_afterClear(t *testing.T) {
+	filter := bloom.New(3, 0.01, wire.UpdateAll)
+	filter.Clear()
+
+	if err := filter.Add([]byte("hello world")); bloom.ErrUninitialised != err {
+		t.Fatal("expect error but got none")
+	}
+}
+
 func TestFilter_Add_pubKey(t *testing.T) {
 	priv := "5Kg1gnAjaLfKiwhhPpGS3QfRg2m6awQvaj98JCZBZQ5SuS2F15C"
 
@@ -143,6 +152,15 @@ func TestFilter_Match(t *testing.T) {
 		} else if !c.added && filter.Match(c.data) {
 			t.Fatalf("#%d unexpected false positive: %x", i, c.data)
 		}
+	}
+}
+
+func TestFilter_Match_afterClear(t *testing.T) {
+	filter := bloom.New(3, 0.01, wire.UpdateAll)
+	filter.Clear()
+
+	if filter.Match([]byte("hello world")) {
+		t.Fatal("expect negative matching")
 	}
 }
 

@@ -150,15 +150,14 @@ func TestFilter_MatchOutPoint(t *testing.T) {
 	}
 }
 
-func TestFilter_MatchTxAndUpdate_all(t *testing.T) {
+func TestFilter_MatchTx(t *testing.T) {
 	const (
 		N          = 10
-		Tweak      = bloom.Tweak
 		P          = 0.000001
-		UpdateRule = wire.UpdateAll
+		UpdateRule = wire.UpdateNone
 	)
 
-	tx := bloom.FakeTx(t)
+	block := bloom.ReadBlock(t)
 
 	type expect struct {
 		ok   bool
@@ -171,47 +170,270 @@ func TestFilter_MatchTxAndUpdate_all(t *testing.T) {
 		expect      expect
 	}{
 		{
-			"match tx hash only",
-			tx,
-			[][]byte{
-				bloom.Unhexlify("6bff7fcd4f8565ef406dd5d63d4ff94f318fe82027fd4dc451b04474019f74b4"),
+			description: "match tx hash only",
+			tx:          btcutil.NewTx(block.Transactions[0]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("0b3674c6e50f36f36f7a9f485e76c7868bf4d9f5984eaa0b5996657876aa7c14"),
 			},
-			expect{true, bloom.Unhexlify("0000000000001000001820000804000000003010180000200000048000800000004a04")},
+			expect: expect{true, bloom.Unhexlify("1000000000000800000000080000040000200400a04800008108000008014080044000")},
 		},
 		{
-			"match the pushed data of the 2nd output",
-			tx,
-			[][]byte{
-				bloom.Unhexlify("a266436d2965547608b9e15d9032a7b9d64fa431"),
+			description: "match elem in output's PkScript without update due to update rule",
+			tx:          btcutil.NewTx(block.Transactions[1]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("1b8dd13b994bcfc787b32aeadf58ccb3615cbd54"),
 			},
-			expect{true, bloom.Unhexlify("3000220434020804028000008060000000440a0180481000400402000c008400002480")},
+			expect: expect{true, bloom.Unhexlify("1000020440420204100002000000000000000000010000008200000400000808010000")},
 		},
 		{
-			"match the TxIn's previous output",
-			tx,
-			[][]byte{
-				bloom.Unhexlify("0b26e9b7735eb6aabdf358bab62f9816a21ba9ebdb719d5299e88607d722c19000000000"), // this is the serialized previous OutPoint for tx's input
+			description: "match OutPoint in TxIn",
+			tx:          btcutil.NewTx(block.Transactions[2]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("fdacf9b3eb077412e7a968d2e4f11b9a9dee312d666187ed77ee7d26af16cb0b00000000"),
 			},
-			expect{true, bloom.Unhexlify("00000400000011000000008da000000800000008200000010012200000000000000012")},
+			expect: expect{true, bloom.Unhexlify("0000000000021040050002000000202800000000008000000000004100020100001000")},
 		},
 		{
-			"match the TxIn's 1st pushed data",
-			tx,
-			[][]byte{
-				bloom.Unhexlify("30450220070aca44506c5cef3a16ed519d7c3c39f8aab192c4e1c90d065f37b8a4af6141022100a8e160b856c2d43d27d8fba71e5aef6405b8643ac4cb7cb3c462aced7f14711a01"),
+			description: "match 1st pushed element of SignatureScript in TxIn",
+			tx:          btcutil.NewTx(block.Transactions[3]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("304502200c45de8c4f3e2c1821f2fc878cba97b1e6f8807d94930713aa1c86a67b9bf1e40221008581abfef2e30f957815fc89978423746b2086375ca8ecf359c85c2a5b7c88ad01"),
 			},
-			expect{true, bloom.Unhexlify("00000000040000100000110000000000200000000820880000210c0100100010000104")},
+			expect: expect{true, bloom.Unhexlify("4004000000b00000000010020000080040108000000040400080000000000084002808")},
 		},
 		{
 			"no match",
-			tx,
+			btcutil.NewTx(block.Transactions[0]),
 			nil,
 			expect{false, bloom.Unhexlify("0000000000000000000000000000000000000000000000000000000000000000000000")},
 		},
 	}
 
 	for i, c := range testCases {
-		filter := bloom.New(N, P, wire.UpdateAll, Tweak)
+		filter := bloom.New(N, P, UpdateRule, bloom.Tweak)
+		for _, data := range c.preAdded {
+			filter.Add(data)
+		}
+
+		if got := filter.MatchTx(c.tx); got != c.expect.ok {
+			t.Fatalf("#%d invalid matching status: got %v, expect %v", i, got,
+				c.expect.ok)
+		}
+
+		if bits := filter.Snapshot().Bits; !bytes.Equal(bits, c.expect.bits) {
+			t.Fatalf("#%d invalid bits: got %x, expect %x", i, bits, c.expect.bits)
+		}
+	}
+}
+
+func TestFilter_MatchTxAndUpdate_all(t *testing.T) {
+	const (
+		N          = 10
+		P          = 0.000001
+		UpdateRule = wire.UpdateAll
+	)
+
+	block := bloom.ReadBlock(t)
+
+	type expect struct {
+		ok   bool
+		bits []byte
+	}
+	testCases := []struct {
+		description string
+		tx          *btcutil.Tx
+		preAdded    [][]byte
+		expect      expect
+	}{
+		{
+			description: "match tx hash only",
+			tx:          btcutil.NewTx(block.Transactions[0]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("0b3674c6e50f36f36f7a9f485e76c7868bf4d9f5984eaa0b5996657876aa7c14"),
+			},
+			expect: expect{true, bloom.Unhexlify("1000000000000800000000080000040000200400a04800008108000008014080044000")},
+		},
+		{
+			description: "match elem in output's PkScript#0",
+			tx:          btcutil.NewTx(block.Transactions[0]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("04eaafc2314def4ca98ac970241bcab022b9c1e1f4ea423a20f134c876f2c01ec0f0dd5b2e86e7168cefe0d81113c3807420ce13ad1357231a2252247d97a46a91"),
+			},
+			expect: expect{true, bloom.Unhexlify("0804010120800801100214340b01091100000020102000410100003000110000000102")},
+		},
+		{
+			description: "match elem in output's PkScript#1",
+			tx:          btcutil.NewTx(block.Transactions[1]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("1b8dd13b994bcfc787b32aeadf58ccb3615cbd54"),
+			},
+			expect: expect{true, bloom.Unhexlify("12001284424202041002028000000e0000110001010030018200000404000c08011000")},
+		},
+		{
+			description: "match OutPoint in TxIn",
+			tx:          btcutil.NewTx(block.Transactions[2]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("fdacf9b3eb077412e7a968d2e4f11b9a9dee312d666187ed77ee7d26af16cb0b00000000"),
+			},
+			expect: expect{true, bloom.Unhexlify("0000000000021040050002000000202800000000008000000000004100020100001000")},
+		},
+		{
+			description: "match 1st pushed element of SignatureScript in TxIn",
+			tx:          btcutil.NewTx(block.Transactions[3]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("304502200c45de8c4f3e2c1821f2fc878cba97b1e6f8807d94930713aa1c86a67b9bf1e40221008581abfef2e30f957815fc89978423746b2086375ca8ecf359c85c2a5b7c88ad01"),
+			},
+			expect: expect{true, bloom.Unhexlify("4004000000b00000000010020000080040108000000040400080000000000084002808")},
+		},
+		{
+			"no match",
+			btcutil.NewTx(block.Transactions[0]),
+			nil,
+			expect{false, bloom.Unhexlify("0000000000000000000000000000000000000000000000000000000000000000000000")},
+		},
+	}
+
+	for i, c := range testCases {
+		filter := bloom.New(N, P, UpdateRule, bloom.Tweak)
+		for _, data := range c.preAdded {
+			filter.Add(data)
+		}
+
+		if got := filter.MatchTxAndUpdate(c.tx); got != c.expect.ok {
+			t.Fatalf("#%d invalid matching status: got %v, expect %v", i, got,
+				c.expect.ok)
+		}
+
+		if bits := filter.Snapshot().Bits; !bytes.Equal(bits, c.expect.bits) {
+			t.Fatalf("#%d invalid bits: got %x, expect %x", i, bits, c.expect.bits)
+		}
+	}
+}
+
+func TestFilter_MatchTxAndUpdate_badPkScript(t *testing.T) {
+	const (
+		N          = 10
+		P          = 0.000001
+		UpdateRule = wire.UpdateAll
+	)
+
+	block := bloom.ReadBlock(t)
+
+	tx := block.Transactions[1]
+
+	// introduce corruption
+	tx.TxOut[0].PkScript = bloom.Unhexlify("6de59c34381a159e95fc6b8775558c5c63bcceeaeb576eb53b")
+
+	out := tx.TxOut[1]
+	outData, err := txscript.PushedData(out.PkScript)
+	if nil != err {
+		t.Fatal(err)
+	}
+	preAdded := outData[len(outData)-1]
+
+	expect := bloom.Unhexlify("1004020440420225150002002001800010000000010000008200200400008908810410")
+
+	filter := bloom.New(N, P, UpdateRule, bloom.Tweak)
+	filter.Add(preAdded)
+
+	if got := filter.MatchTxAndUpdate(btcutil.NewTx(tx)); !got {
+		t.Fatalf("matching is expected")
+	}
+
+	if bits := filter.Snapshot().Bits; !bytes.Equal(bits, expect) {
+		t.Fatalf("invalid bits: got %x, expect %x", bits, expect)
+	}
+}
+
+func TestFilter_MatchTxAndUpdate_badSignatureScript(t *testing.T) {
+	const (
+		N          = 10
+		P          = 0.000001
+		UpdateRule = wire.UpdateAll
+	)
+
+	block := bloom.ReadBlock(t)
+
+	tx := block.Transactions[1]
+
+	// introduce corruption
+	//io.ReadFull(rand.Reader, tx.TxIn[0].SignatureScript)
+	tx.TxIn[0].SignatureScript = bloom.Unhexlify("4fd580192a4b534058fb7b0bc98324d79dd41c073294889b963880e256aeac810e74f8f178063c318517a37d4eecb2db0f797fa1e9d4bf95f928fb31b583d346554c16613661400e1a")
+
+	expect := bloom.Unhexlify("0000000000000000000000000000000000000000000000000000000000000000000000")
+
+	filter := bloom.New(N, P, UpdateRule, bloom.Tweak)
+
+	if got := filter.MatchTxAndUpdate(btcutil.NewTx(tx)); got {
+		t.Fatalf("non-matching is expected")
+	}
+
+	if bits := filter.Snapshot().Bits; !bytes.Equal(bits, expect) {
+		t.Fatalf("invalid bits: got %x, expect %x", bits, expect)
+	}
+}
+
+func TestFilter_MatchTxAndUpdate_none(t *testing.T) {
+	const (
+		N          = 10
+		P          = 0.000001
+		UpdateRule = wire.UpdateNone
+	)
+
+	block := bloom.ReadBlock(t)
+
+	type expect struct {
+		ok   bool
+		bits []byte
+	}
+	testCases := []struct {
+		description string
+		tx          *btcutil.Tx
+		preAdded    [][]byte
+		expect      expect
+	}{
+		{
+			description: "match tx hash only",
+			tx:          btcutil.NewTx(block.Transactions[0]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("0b3674c6e50f36f36f7a9f485e76c7868bf4d9f5984eaa0b5996657876aa7c14"),
+			},
+			expect: expect{true, bloom.Unhexlify("1000000000000800000000080000040000200400a04800008108000008014080044000")},
+		},
+		{
+			description: "match elem in output's PkScript without update due to update rule",
+			tx:          btcutil.NewTx(block.Transactions[1]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("1b8dd13b994bcfc787b32aeadf58ccb3615cbd54"),
+			},
+			expect: expect{true, bloom.Unhexlify("1000020440420204100002000000000000000000010000008200000400000808010000")},
+		},
+		{
+			description: "match OutPoint in TxIn",
+			tx:          btcutil.NewTx(block.Transactions[2]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("fdacf9b3eb077412e7a968d2e4f11b9a9dee312d666187ed77ee7d26af16cb0b00000000"),
+			},
+			expect: expect{true, bloom.Unhexlify("0000000000021040050002000000202800000000008000000000004100020100001000")},
+		},
+		{
+			description: "match 1st pushed element of SignatureScript in TxIn",
+			tx:          btcutil.NewTx(block.Transactions[3]),
+			preAdded: [][]byte{
+				bloom.Unhexlify("304502200c45de8c4f3e2c1821f2fc878cba97b1e6f8807d94930713aa1c86a67b9bf1e40221008581abfef2e30f957815fc89978423746b2086375ca8ecf359c85c2a5b7c88ad01"),
+			},
+			expect: expect{true, bloom.Unhexlify("4004000000b00000000010020000080040108000000040400080000000000084002808")},
+		},
+		{
+			"no match",
+			btcutil.NewTx(block.Transactions[0]),
+			nil,
+			expect{false, bloom.Unhexlify("0000000000000000000000000000000000000000000000000000000000000000000000")},
+		},
+	}
+
+	for i, c := range testCases {
+		filter := bloom.New(N, P, UpdateRule, bloom.Tweak)
 		for _, data := range c.preAdded {
 			filter.Add(data)
 		}
@@ -255,7 +477,7 @@ func TestFilter_MatchTxAndUpdate_p2PubKeyOnly(t *testing.T) {
 			expect: expect{true, bloom.Unhexlify("1000000000000800000000080000040000200400a04800008108000008014080044000")},
 		},
 		{
-			description: "match tx hash only",
+			description: "match elem in output's PkScript and update",
 			tx:          btcutil.NewTx(block.Transactions[0]),
 			preAdded: [][]byte{
 				bloom.Unhexlify("04eaafc2314def4ca98ac970241bcab022b9c1e1f4ea423a20f134c876f2c01ec0f0dd5b2e86e7168cefe0d81113c3807420ce13ad1357231a2252247d97a46a91"),
@@ -311,86 +533,14 @@ func TestFilter_MatchTxAndUpdate_p2PubKeyOnly(t *testing.T) {
 	}
 }
 
-func TestFilter_MatchTxAndUpdate_all2(t *testing.T) {
-	const (
-		N          = 10
-		Tweak      = bloom.Tweak
-		P          = 0.000001
-		UpdateRule = wire.UpdateAll
-	)
-
-	tx := bloom.FakeTx(t)
-
-	//bf := btcbloom.NewFilter(N, Tweak, P, btcwire.BloomUpdateAll)
-
-	/*
-		out2 := tx.MsgTx().TxOut[1]
-		out2Data, err := txscript.PushedData(out2.PkScript)
-		if nil != err {
-			t.Fatal(err)
-		}
-
-		for _, elem := range out2Data {
-			t.Logf("elem: %x", elem)
-			bf.Add(elem)
-			t.Logf("bits: %x", bf.MsgFilterLoad().Filter)
-			bf.MatchTxAndUpdate(tx)
-			t.Logf("bits2: %x", bf.MsgFilterLoad().Filter)
-		}*/
-	//in1 := tx.MsgTx().TxIn[0]
-
-	/*out := &in1.PreviousOutPoint
-	var i [4]byte
-	binary.LittleEndian.PutUint32(i[:], out.Index)
-
-	t.Logf("%x", append(out.Hash[:], i[:]...))
-
-	bf.AddOutPoint(&in1.PreviousOutPoint)
-	t.Logf("bits: %x", bf.MsgFilterLoad().Filter)
-	*/
-
-	/*
-		data, err := txscript.PushedData(in1.SignatureScript)
-		if nil != err {
-			t.Fatal(err)
-		}
-
-		for _, elem := range data {
-			t.Logf("elem: %x", elem)
-			bf.Add(elem)
-			t.Logf("bits: %x", bf.MsgFilterLoad().Filter)
-			bf.MatchTxAndUpdate(tx)
-			t.Logf("bits: %x", bf.MsgFilterLoad().Filter)
-		}
-	*/
-
-	/* P2PubKeyOnly */
-	bf := btcbloom.NewFilter(N, Tweak, P, btcwire.BloomUpdateP2PubkeyOnly)
-
-	out2 := tx.MsgTx().TxOut[1]
-	out2Data, err := txscript.PushedData(out2.PkScript)
-	if nil != err {
-		t.Fatal(err)
-	}
-
-	for _, elem := range out2Data {
-		t.Logf("elem: %x", elem)
-		bf.Add(elem)
-		t.Logf("bits: %x", bf.MsgFilterLoad().Filter)
-		bf.MatchTxAndUpdate(tx)
-		t.Logf("bits2: %x", bf.MsgFilterLoad().Filter)
-	}
-	/* end P2PubKeyOnly */
-}
-
 func TestHello(t *testing.T) {
 	block := bloom.ReadBlock(t)
 
-	for i, tx := range block.Transactions {
-		for _, out := range tx.TxOut {
-			t.Log(i, txscript.GetScriptClass(out.PkScript))
-		}
-	}
+	//for i, tx := range block.Transactions {
+	//	for _, out := range tx.TxOut {
+	//		t.Log(i, txscript.GetScriptClass(out.PkScript))
+	//	}
+	//}
 
 	const (
 		N          = 10
@@ -408,7 +558,9 @@ func TestHello(t *testing.T) {
 }
 `
 
-	bf := btcbloom.NewFilter(N, bloom.Tweak, P, btcwire.BloomUpdateP2PubkeyOnly)
+	bf := btcbloom.NewFilter(N, bloom.Tweak, P, btcwire.BloomUpdateAll)
+	//bf := btcbloom.NewFilter(N, bloom.Tweak, P, btcwire.BloomUpdateP2PubkeyOnly)
+	//bf := btcbloom.NewFilter(N, bloom.Tweak, P, btcwire.BloomUpdateNone)
 
 	// P2PubKeyOnly
 	// match tx hash only
@@ -431,7 +583,7 @@ func TestHello(t *testing.T) {
 		preAdded := outData[len(outData)-1]
 
 		bf.Add(preAdded)
-		t.Logf("%x", bf.MsgFilterLoad().Filter)
+		//t.Logf("%x", bf.MsgFilterLoad().Filter)
 		ok := bf.MatchTxAndUpdate(btcutil.NewTx(tx))
 		bits := bf.MsgFilterLoad().Filter
 		t.Logf(format, "match elem in output's PkScript", 0, preAdded, ok, bits)
@@ -448,7 +600,7 @@ func TestHello(t *testing.T) {
 		preAdded := outData[len(outData)-1]
 
 		bf.Add(preAdded)
-		t.Logf("%x", bf.MsgFilterLoad().Filter)
+		//t.Logf("%x", bf.MsgFilterLoad().Filter)
 		ok := bf.MatchTxAndUpdate(btcutil.NewTx(tx))
 		bits := bf.MsgFilterLoad().Filter
 		t.Logf(format, "match elem in output's PkScript without update due to update rule", idx, preAdded, ok, bits)
@@ -468,13 +620,53 @@ func TestHello(t *testing.T) {
 		t.Logf(format, "match OutPoint in TxIn", idx, preAdded, ok, bits)
 	*/
 
-	const idx = 3
-	tx := block.Transactions[idx]
-	data, _ := txscript.PushedData(tx.TxIn[0].SignatureScript)
-	preAdded := data[0]
+	/*
+		const idx = 3
+		tx := block.Transactions[idx]
+		data, _ := txscript.PushedData(tx.TxIn[0].SignatureScript)
+		preAdded := data[0]
 
-	bf.Add(preAdded)
+		bf.Add(preAdded)
+		ok := bf.MatchTxAndUpdate(btcutil.NewTx(tx))
+		bits := bf.MsgFilterLoad().Filter
+		t.Logf(format, "match 1st pushed element of SignatureScript in TxIn", idx,
+			preAdded, ok, bits)
+	*/
+
+	// corrupt PkScript in TxOut
+	/*
+		const idx = 1
+		tx := block.Transactions[idx]
+
+		//t.Logf("%x", tx.TxOut[0].PkScript)
+		//io.ReadFull(rand.Reader, tx.TxOut[0].PkScript)
+		tx.TxOut[0].PkScript = bloom.Unhexlify("6de59c34381a159e95fc6b8775558c5c63bcceeaeb576eb53b")
+		//t.Logf("%x", tx.TxOut[0].PkScript)
+
+		out := tx.TxOut[1]
+		outData, err := txscript.PushedData(out.PkScript)
+		if nil != err {
+			t.Fatal(err)
+		}
+		preAdded := outData[len(outData)-1]
+
+		bf.Add(preAdded)
+		ok := bf.MatchTxAndUpdate(btcutil.NewTx(tx))
+		bits := bf.MsgFilterLoad().Filter
+		t.Logf(format, "match elem in output's PkScript and update given some bad TxOut.PkScripts", idx, preAdded, ok, bits)
+	*/
+
+	// corrupt SignatureScript in TxIn
+	const idx = 1
+	tx := block.Transactions[idx]
+
+	t.Logf("%x", tx.TxIn[0].SignatureScript)
+	//io.ReadFull(rand.Reader, tx.TxIn[0].SignatureScript)
+	tx.TxIn[0].SignatureScript = bloom.Unhexlify("bad signature script")
+	//tx.TxOut[0].PkScript = bloom.Unhexlify("6de59c34381a159e95fc6b8775558c5c63bcceeaeb576eb53b")
+	//t.Logf("%x", tx.TxOut[0].PkScript)
+
 	ok := bf.MatchTxAndUpdate(btcutil.NewTx(tx))
 	bits := bf.MsgFilterLoad().Filter
-	t.Logf(format, "match 1st pushed element of SignatureScript in TxIn", idx, preAdded, ok, bits)
+	t.Logf(format, "match elem in output's PkScript and update given some bad TxOut.PkScripts", idx, "", ok, bits)
 }
