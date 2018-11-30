@@ -45,6 +45,7 @@ func (f *Filter) matchTxAndUpdate(tx *btcutil.Tx) bool {
 					f.addOutPoint(txHash, uint32(idx))
 				}
 			}
+			break
 		}
 	}
 
