@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcutil"
+	"github.com/sammy00/bip37"
 	"github.com/sammy00/bip37/bloom"
 	"github.com/sammy00/bip37/wire"
 )
@@ -22,20 +23,20 @@ func TestFilter_Add(t *testing.T) {
 		expect []byte // the expected bits array in snapshot
 	}{
 		{
-			bloom.Hexlify("99108ad8ed9bb6274d3980bab5a85c048f0950c8"),
-			bloom.Hexlify("0021c1"),
+			bip37.Unhexlify("99108ad8ed9bb6274d3980bab5a85c048f0950c8"),
+			bip37.Unhexlify("0021c1"),
 		},
 		{
-			bloom.Hexlify("19108ad8ed9bb6274d3980bab5a85c048f0950c8"),
-			bloom.Hexlify("00202e"),
+			bip37.Unhexlify("19108ad8ed9bb6274d3980bab5a85c048f0950c8"),
+			bip37.Unhexlify("00202e"),
 		},
 		{
-			bloom.Hexlify("b5a2c786d9ef4658287ced5914b37a1b4aa32eee"),
-			bloom.Hexlify("064c00"),
+			bip37.Unhexlify("b5a2c786d9ef4658287ced5914b37a1b4aa32eee"),
+			bip37.Unhexlify("064c00"),
 		},
 		{
-			bloom.Hexlify("b9300670b4c5366e95b2699e8b18bc75e5f729c5"),
-			bloom.Hexlify("148402"),
+			bip37.Unhexlify("b9300670b4c5366e95b2699e8b18bc75e5f729c5"),
+			bip37.Unhexlify("148402"),
 		},
 	}
 
@@ -49,7 +50,7 @@ func TestFilter_Add(t *testing.T) {
 		//btc := btcbloom.NewFilter(3, Tweak, 0.01, wire.BloomUpdateAll)
 		//btc.Add(c.data)
 		//c.expect = btc.MsgFilterLoad().Filter
-		//t.Logf(`bloom.Hexlify("%x")`, c.expect)
+		//t.Logf(`bip37.Unhexlify("%x")`, c.expect)
 
 		if got := filter.Snapshot().Bits; !bytes.Equal(got, c.expect) {
 			t.Fatalf("#%d invalid bits: got %v, expect %v", i, got, c.expect)
@@ -80,7 +81,7 @@ func TestFilter_Add_pubKey(t *testing.T) {
 	f.Add(btcutil.Hash160(wif.SerializePubKey()))
 
 	expect := &wire.FilterLoad{
-		Bits:      bloom.Hexlify("8fc16b"),
+		Bits:      bip37.Unhexlify("8fc16b"),
 		HashFuncs: 8,
 		Tweak:     0,
 		Flags:     1,
@@ -135,10 +136,10 @@ func TestFilter_Match(t *testing.T) {
 		data  []byte
 		added bool
 	}{
-		{bloom.Hexlify("99108ad8ed9bb6274d3980bab5a85c048f0950c8"), true},
-		{bloom.Hexlify("19108ad8ed9bb6274d3980bab5a85c048f0950c8"), false},
-		{bloom.Hexlify("b5a2c786d9ef4658287ced5914b37a1b4aa32eee"), false},
-		{bloom.Hexlify("b9300670b4c5366e95b2699e8b18bc75e5f729c5"), true},
+		{bip37.Unhexlify("99108ad8ed9bb6274d3980bab5a85c048f0950c8"), true},
+		{bip37.Unhexlify("19108ad8ed9bb6274d3980bab5a85c048f0950c8"), false},
+		{bip37.Unhexlify("b5a2c786d9ef4658287ced5914b37a1b4aa32eee"), false},
+		{bip37.Unhexlify("b9300670b4c5366e95b2699e8b18bc75e5f729c5"), true},
 	}
 
 	for i, c := range testCases {
@@ -234,13 +235,13 @@ func TestNew_withTweak(t *testing.T) {
 		{
 			bloom.New(3, 0.01, wire.UpdateAll, 2147483649),
 			[][]byte{
-				bloom.Hexlify("99108ad8ed9bb6274d3980bab5a85c048f0950c8"),
-				//bloom.Hexlify("19108ad8ed9bb6274d3980bab5a85c048f0950c8"),
-				bloom.Hexlify("b5a2c786d9ef4658287ced5914b37a1b4aa32eee"),
-				bloom.Hexlify("b9300670b4c5366e95b2699e8b18bc75e5f729c5"),
+				bip37.Unhexlify("99108ad8ed9bb6274d3980bab5a85c048f0950c8"),
+				//bip37.Unhexlify("19108ad8ed9bb6274d3980bab5a85c048f0950c8"),
+				bip37.Unhexlify("b5a2c786d9ef4658287ced5914b37a1b4aa32eee"),
+				bip37.Unhexlify("b9300670b4c5366e95b2699e8b18bc75e5f729c5"),
 			},
 			&wire.FilterLoad{
-				Bits:      bloom.Hexlify("ce4299"),
+				Bits:      bip37.Unhexlify("ce4299"),
 				HashFuncs: 5,
 				Tweak:     2147483649,
 				Flags:     wire.UpdateAll,
