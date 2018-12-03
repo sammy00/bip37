@@ -12,11 +12,6 @@ import (
 	"github.com/sammy00/bip37/wire"
 )
 
-const (
-	Tweak = 0x00000005
-	C     = 0xfba4c795
-)
-
 func TestFilter_Add(t *testing.T) {
 	testCases := []struct {
 		data   []byte
@@ -41,7 +36,7 @@ func TestFilter_Add(t *testing.T) {
 	}
 
 	for i, c := range testCases {
-		filter := bloom.New(3, 0.01, wire.UpdateAll, Tweak, C)
+		filter := bloom.New(3, 0.01, wire.UpdateAll, bloom.Tweak, bloom.C)
 
 		if err := filter.Add(c.data); nil != err {
 			t.Fatalf("#%d unexpected error: %v", i, err)
@@ -143,7 +138,7 @@ func TestFilter_Match(t *testing.T) {
 	}
 
 	for i, c := range testCases {
-		filter := bloom.New(3, 0.01, wire.UpdateAll, Tweak, C)
+		filter := bloom.New(3, 0.01, wire.UpdateAll, bloom.Tweak, bloom.C)
 		if c.added {
 			filter.Add(c.data)
 		}
