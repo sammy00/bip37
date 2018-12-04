@@ -3,15 +3,20 @@ package merkle
 import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
 	"github.com/sammy00/bip37/bloom"
 )
 
-type Block struct{}
+type Block struct {
+	*btcutil.Block
+
+	nTx uint32
+}
 
 // the width of tree as height is estimated as
-//  ceil(#(leaves)/2^k)=(#(leaves)+2^k-1)/2^k
+//  ceil(#(leaves)/2^h)=(#(leaves)+2^h-1)/2^h
 func (block *Block) calcTreeWidth(height uint32) uint32 {
-	return 0
+	return (block.nTx + (1 << height) - 1) >> height
 }
 
 func (block *Block) hash(height, idx uint32) *chainhash.Hash {
@@ -23,8 +28,11 @@ func (block *Block) hash(height, idx uint32) *chainhash.Hash {
 // row is 0
 func (block *Block) traverseAndBuild(height, idx uint32) {}
 
-func New(block *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
+func New(b *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
 	[]uint32) {
+	block := &Block{Block: btcutil.NewBlock(b)}
+	block.nTx = uint32(len(block.Transactions()))
+
 	// retrieve all txs
 	// calculates digests for all leaf txs
 	// filter out the matched txs
