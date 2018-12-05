@@ -64,11 +64,18 @@ func (block *Block) traverseAndBuild(height, idx uint32) {
 
 func New(b *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
 	[]uint32) {
-	block := &Block{Block: btcutil.NewBlock(b)}
+	nTx := len(b.Transactions)
+	block := &Block{
+		Block: btcutil.NewBlock(b),
+
+		included: make([]byte, nTx),
+		leaves:   make([]*chainhash.Hash, nTx),
+		nTx:      uint32(nTx),
+	}
 
 	// retrieve all txs
-	block.nTx = uint32(len(block.Transactions()))
-	block.included = make([]byte, block.nTx)
+	//block.nTx = uint32(len(block.Transactions()))
+	//block.included = make([]byte, block.nTx)
 
 	var hits []uint32
 	// calculates digests for all leaf txs
@@ -95,7 +102,7 @@ func New(b *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
 	//  + add all tx hashes
 	//  + populate the flag bits
 	msg := &wire.MsgMerkleBlock{
-		Hashes:       make([]*chainhash.Hash, len(block.branches)),
+		Hashes:       make([]*chainhash.Hash, 0, len(block.branches)),
 		Header:       block.MsgBlock().Header,
 		Transactions: block.nTx,
 		Flags:        make([]byte, (len(block.flags)+7)/8),
