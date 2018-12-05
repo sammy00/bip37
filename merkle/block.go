@@ -23,16 +23,15 @@ type Block struct {
 func (block *Block) calcTreeWidth(height uint32) uint32 {
 	return (block.nTx + (1 << height) - 1) >> height
 }
-
-func (block *Block) hash(height, idx uint32) *chainhash.Hash {
+func (block *Block) branchHash(height, idx uint32) *chainhash.Hash {
 	if 0 == height {
 		return block.leaves[idx]
 	}
 
 	var L, R *chainhash.Hash
-	L = block.hash(height-1, idx<<1)
+	L = block.branchHash(height-1, idx<<1)
 	if j := (idx << 1) + 1; j < block.calcTreeWidth(height-1) {
-		R = block.hash(height-1, j)
+		R = block.branchHash(height-1, j)
 	} else {
 		R = L
 	}
@@ -43,7 +42,25 @@ func (block *Block) hash(height, idx uint32) *chainhash.Hash {
 // traverse and build the depth-first sub-tree of the given height and
 // indexed by idx within that row, where the index of first node of each
 // row is 0
-func (block *Block) traverseAndBuild(height, idx uint32) {}
+func (block *Block) traverseAndBuild(height, idx uint32) {
+	var flag byte
+	for i := idx << height; (i < block.nTx) && (i>>height == idx) &&
+		(0x01 != flag); i++ {
+		flag = block.included[i]
+	}
+
+	block.flags = append(block.flags, flag)
+
+	if 0 == height || 0x00 == flag {
+		block.branches = append(block.branches, block.branchHash(height, idx))
+		return
+	}
+
+	block.traverseAndBuild(height-1, idx<<1)
+	if j := (idx << 1) + 1; j < block.calcTreeWidth(height-1) {
+		block.traverseAndBuild(height-1, j)
+	}
+}
 
 func New(b *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
 	[]uint32) {
