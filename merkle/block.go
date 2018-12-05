@@ -1,6 +1,7 @@
 package merkle
 
 import (
+	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
@@ -10,7 +11,11 @@ import (
 type Block struct {
 	*btcutil.Block
 
-	nTx uint32
+	flags    []byte
+	leaves   []*chainhash.Hash
+	included []byte
+	branches []*chainhash.Hash
+	nTx      uint32
 }
 
 // the width of tree as height is estimated as
@@ -20,7 +25,19 @@ func (block *Block) calcTreeWidth(height uint32) uint32 {
 }
 
 func (block *Block) hash(height, idx uint32) *chainhash.Hash {
-	return nil
+	if 0 == height {
+		return block.leaves[idx]
+	}
+
+	var L, R *chainhash.Hash
+	L = block.hash(height-1, idx<<1)
+	if j := (idx << 1) + 1; j < block.calcTreeWidth(height-1) {
+		R = block.hash(height-1, j)
+	} else {
+		R = L
+	}
+
+	return blockchain.HashMerkleBranches(L, R)
 }
 
 // traverse and build the depth-first sub-tree of the given height and
@@ -31,21 +48,49 @@ func (block *Block) traverseAndBuild(height, idx uint32) {}
 func New(b *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
 	[]uint32) {
 	block := &Block{Block: btcutil.NewBlock(b)}
-	block.nTx = uint32(len(block.Transactions()))
 
 	// retrieve all txs
+	block.nTx = uint32(len(block.Transactions()))
+	block.included = make([]byte, block.nTx)
+
+	var hits []uint32
 	// calculates digests for all leaf txs
-	// filter out the matched txs
+	for i, tx := range block.Transactions() {
+		block.leaves[i] = tx.Hash()
+		if filter.MatchTxAndUpdate(tx) {
+			// filter out the matched txs and append matched bit
+			block.included[i] = 0x01
+			hits = append(hits, uint32(i))
+		} else {
+			block.included[i] = 0x00
+		}
+	}
 
 	// calculate the tree height
+	var height uint32
+	for ; (1 << height) < block.nTx; height++ {
+	}
 
 	// build the depth-first partial Merkle tree
+	block.traverseAndBuild(height, 0)
 
 	// convert the native block to the canonical one, which would
 	//  + add all tx hashes
 	//  + populate the flag bits
+	msg := &wire.MsgMerkleBlock{
+		Hashes:       make([]*chainhash.Hash, len(block.branches)),
+		Header:       block.MsgBlock().Header,
+		Transactions: block.nTx,
+		Flags:        make([]byte, (len(block.flags)+7)/8),
+	}
+	for _, m := range block.branches {
+		msg.AddTxHash(m)
+	}
+	for i, b := range block.flags {
+		msg.Flags[i/8] |= b << uint32(i%8)
+	}
 
-	return nil, nil
+	return msg, hits
 }
 
 func Validate(block *wire.MsgMerkleBlock) bool {
