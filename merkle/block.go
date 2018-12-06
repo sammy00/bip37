@@ -117,6 +117,72 @@ func New(b *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
 	return msg, hits
 }
 
-func Validate(block *wire.MsgMerkleBlock) bool {
-	return false
+func Parse(block *wire.MsgMerkleBlock) ([]*chainhash.Hash, bool) {
+	// calculate the tree height
+	var height uint32
+	for ; (1 << height) < block.Transactions; height++ {
+	}
+
+	var (
+		consumed int
+		matched  []*chainhash.Hash
+	)
+
+	root := parse(&matched, block, 0, height, &consumed)
+
+	ok := len(block.Hashes) == consumed &&
+		len(block.Flags)>>3 == consumed &&
+		0 == (block.Flags[consumed>>3]>>uint(consumed%8)) &&
+		block.Header.MerkleRoot.IsEqual(root)
+
+	// check the PoW
+
+	return matched, ok
+}
+
+func calcTreeWidth(nTx, height uint32) uint32 {
+	return (nTx + (1 << height) - 1) >> height
+}
+
+func parse(matched *[]*chainhash.Hash, block *wire.MsgMerkleBlock,
+	i, height uint32, consumed *int) *chainhash.Hash {
+	j := *consumed
+	if j >= len(block.Hashes) || j >= (len(block.Flags)<<3) {
+		return nil
+	}
+
+	switch flag := (block.Flags[j>>3] >> uint(j%8)) & 0x01; true {
+	case 0 == flag:
+		hash := block.Hashes[j]
+		*consumed = j + 1
+
+		return hash
+	case 1 == flag && 0 == height:
+		hash := block.Hashes[j]
+		*matched, *consumed = append(*matched, hash), j+1
+
+		return hash
+	case 1 == flag && height > 0:
+		*consumed++
+		k := i << 1
+
+		L := parse(matched, block, k, height-1, consumed)
+		if nil == L {
+			return nil
+		}
+
+		k++
+		if k >= calcTreeWidth(block.Transactions, height-1) {
+			return blockchain.HashMerkleBranches(L, L)
+		}
+
+		//*consumed++
+		R := parse(matched, block, k, height-1, consumed)
+		if nil != R || !R.IsEqual(L) {
+			return blockchain.HashMerkleBranches(L, R)
+		}
+	default:
+	}
+
+	return nil
 }

@@ -376,3 +376,32 @@ func TestNew(t *testing.T) {
 		t.Fatal("failed")
 	}
 }
+
+func TestParse(t *testing.T) {
+	msg := bip37.ReadBlock(t)
+	t.Log("#(tx) =", len(msg.Transactions))
+
+	bf := bloom.New(10, 0.000001, wire.UpdateAll)
+	for i, tx := range msg.Transactions {
+		if i%2 == 0 {
+			continue
+		}
+
+		h := tx.TxHash()
+		bf.Add(h[:])
+		t.Logf("%x", h)
+	}
+
+	block, _ := merkle.New(msg, bf)
+	t.Logf("flags = %x", block.Flags)
+	for i, h := range block.Hashes {
+		t.Logf("h[%d]=%x", i, h)
+	}
+
+	matched, ok := merkle.Parse(block)
+	t.Log("ok", ok)
+	t.Log("hashes")
+	for _, h := range matched {
+		t.Logf("%x", h)
+	}
+}
