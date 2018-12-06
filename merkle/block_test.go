@@ -379,29 +379,46 @@ func TestNew(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	msg := bip37.ReadBlock(t)
-	t.Log("#(tx) =", len(msg.Transactions))
+	//t.Log("#(tx) =", len(msg.Transactions))
 
 	bf := bloom.New(10, 0.000001, wire.UpdateAll)
-	for i, tx := range msg.Transactions {
-		if i%2 == 0 {
-			continue
-		}
+	included := []int{1, 3, 4}
+	/*
+		for i, tx := range msg.Transactions {
+			if i%2 == 0 {
+				continue
+			}
 
-		h := tx.TxHash()
+			h := tx.TxHash()
+			bf.Add(h[:])
+			t.Logf("%x", h)
+		}*/
+	for _, j := range included {
+		h := msg.Transactions[j].TxHash()
 		bf.Add(h[:])
-		t.Logf("%x", h)
 	}
 
 	block, _ := merkle.New(msg, bf)
-	t.Logf("flags = %x", block.Flags)
-	for i, h := range block.Hashes {
-		t.Logf("h[%d]=%x", i, h)
-	}
+	//t.Logf("flags = %x", block.Flags)
+	//for i, h := range block.Hashes {
+	//	t.Logf("h[%d]=%x", i, h)
+	//}
+	//block.Hashes = append(block.Hashes, block.Hashes[0])
 
 	matched, ok := merkle.Parse(block)
-	t.Log("ok", ok)
-	t.Log("hashes")
-	for _, h := range matched {
-		t.Logf("%x", h)
+	if !ok {
+		t.Fatal("failed to parse merkle block")
+	}
+	//for _, h := range matched {
+	//	t.Logf("%x", h)
+	//}
+	if len(matched) != len(included) {
+		t.Fatalf("invalid #(match): got %d, expect %d", len(matched), len(included))
+	}
+	for i, j := range included {
+		x, y := msg.Transactions[j].TxHash().String(), matched[i].String()
+		if x != y {
+			t.Fatalf("invalid matched txid: got %x, expect %x", y, x)
+		}
 	}
 }

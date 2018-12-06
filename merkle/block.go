@@ -124,15 +124,15 @@ func Parse(block *wire.MsgMerkleBlock) ([]*chainhash.Hash, bool) {
 	}
 
 	var (
-		consumed int
-		matched  []*chainhash.Hash
+		j, k    int
+		matched []*chainhash.Hash
 	)
 
-	root := parse(&matched, block, 0, height, &consumed)
+	root := parse(&matched, block, 0, height, &j, &k)
 
-	ok := len(block.Hashes) == consumed &&
-		len(block.Flags)>>3 == consumed &&
-		0 == (block.Flags[consumed>>3]>>uint(consumed%8)) &&
+	ok := len(block.Hashes) == k &&
+		len(block.Flags) == (j+7)/8 &&
+		0 == (block.Flags[j>>3]>>uint(j%8)) &&
 		block.Header.MerkleRoot.IsEqual(root)
 
 	// check the PoW
@@ -144,40 +144,42 @@ func calcTreeWidth(nTx, height uint32) uint32 {
 	return (nTx + (1 << height) - 1) >> height
 }
 
+// j is the #(flag-bit) consumed
+// k is the #(hash) consumed
 func parse(matched *[]*chainhash.Hash, block *wire.MsgMerkleBlock,
-	i, height uint32, consumed *int) *chainhash.Hash {
-	j := *consumed
-	if j >= len(block.Hashes) || j >= (len(block.Flags)<<3) {
+	i, height uint32, j, k *int) *chainhash.Hash {
+	if (*j>>3) >= len(block.Flags) || *k >= len(block.Hashes) {
+		// flag bits or hash list is exhausted
 		return nil
 	}
 
-	switch flag := (block.Flags[j>>3] >> uint(j%8)) & 0x01; true {
+	flag := (block.Flags[*j>>3] >> uint(*j%8)) & 0x01
+	*j++
+	switch {
 	case 0 == flag:
-		hash := block.Hashes[j]
-		*consumed = j + 1
+		hash := block.Hashes[*k]
+		*k++
 
 		return hash
 	case 1 == flag && 0 == height:
-		hash := block.Hashes[j]
-		*matched, *consumed = append(*matched, hash), j+1
+		hash := block.Hashes[*k]
+		*k++
+		*matched = append(*matched, hash)
 
 		return hash
 	case 1 == flag && height > 0:
-		*consumed++
-		k := i << 1
-
-		L := parse(matched, block, k, height-1, consumed)
+		childIdx := i << 1
+		L := parse(matched, block, childIdx, height-1, j, k)
 		if nil == L {
 			return nil
 		}
 
-		k++
-		if k >= calcTreeWidth(block.Transactions, height-1) {
+		childIdx++
+		if childIdx >= calcTreeWidth(block.Transactions, height-1) {
 			return blockchain.HashMerkleBranches(L, L)
 		}
 
-		//*consumed++
-		R := parse(matched, block, k, height-1, consumed)
+		R := parse(matched, block, childIdx, height-1, j, k)
 		if nil != R || !R.IsEqual(L) {
 			return blockchain.HashMerkleBranches(L, R)
 		}
