@@ -377,12 +377,14 @@ func TestNew(t *testing.T) {
 	}
 }
 
+// include the 6th leaf to trigger the behavior of replacing the right branch
+// with its left sibling
 func TestParse(t *testing.T) {
 	msg := bip37.ReadBlock(t)
 	//t.Log("#(tx) =", len(msg.Transactions))
 
 	bf := bloom.New(10, 0.000001, wire.UpdateAll)
-	included := []int{1, 3, 4}
+	included := []int{1, 3, 6}
 	/*
 		for i, tx := range msg.Transactions {
 			if i%2 == 0 {
@@ -399,7 +401,7 @@ func TestParse(t *testing.T) {
 	}
 
 	block, _ := merkle.New(msg, bf)
-	//t.Logf("flags = %x", block.Flags)
+	t.Logf("flags = %x", block.Flags)
 	//for i, h := range block.Hashes {
 	//	t.Logf("h[%d]=%x", i, h)
 	//}
@@ -419,6 +421,77 @@ func TestParse(t *testing.T) {
 		x, y := msg.Transactions[j].TxHash().String(), matched[i].String()
 		if x != y {
 			t.Fatalf("invalid matched txid: got %x, expect %x", y, x)
+		}
+	}
+}
+
+func TestParse_errors(t *testing.T) {
+	msg := bip37.ReadBlock(t)
+
+	bf := bloom.New(10, 0.000001, wire.UpdateAll)
+	included := []int{1, 3, 4}
+	for _, j := range included {
+		h := msg.Transactions[j].TxHash()
+		bf.Add(h[:])
+	}
+
+	block, _ := merkle.New(msg, bf)
+
+	testCases := []struct {
+		desc  string
+		block *btcwire.MsgMerkleBlock
+	}{
+		{
+			"0 height and no hash",
+			&btcwire.MsgMerkleBlock{
+				Header:       block.Header,
+				Transactions: 1,
+				Flags:        block.Flags,
+			},
+		},
+		{
+			"hash list is exhausted but more hash is wanted",
+			&btcwire.MsgMerkleBlock{
+				Header:       block.Header,
+				Transactions: block.Transactions,
+				Hashes:       block.Hashes[:5],
+				Flags:        block.Flags,
+			},
+		},
+		{
+			"hash list isn't exhausted",
+			&btcwire.MsgMerkleBlock{
+				Header:       block.Header,
+				Transactions: block.Transactions,
+				Hashes:       append(block.Hashes, block.Hashes[0]),
+				Flags:        block.Flags,
+			},
+		},
+		{
+			"flag bits ain't exhausted",
+			&btcwire.MsgMerkleBlock{
+				Header:       block.Header,
+				Transactions: block.Transactions,
+				Hashes:       block.Hashes,
+				Flags:        append(block.Flags, 0x12),
+			},
+		},
+		{
+			"flag bits are exhausted but has non-zero padding",
+			&btcwire.MsgMerkleBlock{
+				Header:       block.Header,
+				Transactions: block.Transactions,
+				Hashes:       block.Hashes,
+				//Flags:        append(block.Flags, 0x12),
+				Flags: []byte{block.Flags[0], block.Flags[1] | 0xf0},
+			},
+		},
+	}
+
+	for i, c := range testCases[4:] {
+		_, ok := merkle.Parse(c.block)
+		if ok {
+			t.Fatalf("#%d [%s] should trigger error", i, c.desc)
 		}
 	}
 }
