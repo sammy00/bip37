@@ -18,11 +18,18 @@ type Block struct {
 	nTx      uint32
 }
 
-// the width of tree as height is estimated as
-//  ceil(#(leaves)/2^h)=(#(leaves)+2^h-1)/2^h
+// calcTreeWidth estimates the width of tree at height according to
+//  width = ceil(#(leaves)/2^h)=(#(leaves)+2^h-1)/2^h
+// where the height of leaves is defined as 0
 func (block *Block) calcTreeWidth(height uint32) uint32 {
 	return (block.nTx + (1 << height) - 1) >> height
 }
+
+// branchHash calculates the hash of branch by post-order traversing rooted at
+// the idx-th (zero-based) node of height, where
+//  - the hash for a leaf is defined to be itself
+//  - for the hash of a node has no right branch is defines as H(L|L)
+// **NOTE** the initial provided index is assumed to be within bound
 func (block *Block) branchHash(height, idx uint32) *chainhash.Hash {
 	if 0 == height {
 		return block.leaves[idx]
@@ -39,9 +46,9 @@ func (block *Block) branchHash(height, idx uint32) *chainhash.Hash {
 	return blockchain.HashMerkleBranches(L, R)
 }
 
-// traverse and build the depth-first sub-tree of the given height and
-// indexed by idx within that row, where the index of first node of each
-// row is 0
+// traverseAndBuild traverses and builds the depth-first sub-tree of the given
+// height and indexed by idx within that row, where the index of first
+// node of each row is 0
 func (block *Block) traverseAndBuild(height, idx uint32) {
 	var flag byte
 	for i := idx << height; (i < block.nTx) && (i>>height == idx) &&
@@ -62,6 +69,7 @@ func (block *Block) traverseAndBuild(height, idx uint32) {
 	}
 }
 
+// New builds a merkle block based on the given raw block and filter
 func New(b *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
 	[]uint32) {
 	nTx := len(b.Transactions)
@@ -72,10 +80,6 @@ func New(b *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
 		leaves:   make([]*chainhash.Hash, nTx),
 		nTx:      uint32(nTx),
 	}
-
-	// retrieve all txs
-	//block.nTx = uint32(len(block.Transactions()))
-	//block.included = make([]byte, block.nTx)
 
 	var hits []uint32
 	// calculates digests for all leaf txs

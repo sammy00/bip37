@@ -9,12 +9,14 @@ import (
 
 var ln2Sqr = math.Ln2 * math.Ln2
 
+// Filter implements a concurrent safe bloom filter
 type Filter struct {
 	mtx      sync.Mutex
 	snapshot *wire.FilterLoad
 	c        uint32
 }
 
+// Add is the concurrently safe version of its unexported variant `add`
 func (f *Filter) Add(data []byte) error {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -22,6 +24,8 @@ func (f *Filter) Add(data []byte) error {
 	return f.add(data)
 }
 
+// Clear resets the filter by empty its bit pattern, which is safe for
+// concurrent use
 func (f *Filter) Clear() {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -29,6 +33,8 @@ func (f *Filter) Clear() {
 	f.snapshot = nil
 }
 
+// Loaded checks if the filter has been initialized properly, which is safe for
+// concurrent use
 func (f *Filter) Loaded() bool {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -36,6 +42,8 @@ func (f *Filter) Loaded() bool {
 	return nil != f.snapshot
 }
 
+// Match checks if the data may be recorded by the filter, which is safe for
+// concurrent use
 func (f *Filter) Match(data []byte) bool {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -43,6 +51,7 @@ func (f *Filter) Match(data []byte) bool {
 	return f.match(data)
 }
 
+// Recover overrides the bit pattern in a concurrently safe manner
 func (f *Filter) Recover(snapshot *wire.FilterLoad) *Filter {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -52,6 +61,7 @@ func (f *Filter) Recover(snapshot *wire.FilterLoad) *Filter {
 	return f
 }
 
+// Snapshot return the bit pattern maintained by filter up till now
 func (f *Filter) Snapshot() *wire.FilterLoad {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -59,10 +69,12 @@ func (f *Filter) Snapshot() *wire.FilterLoad {
 	return f.snapshot
 }
 
+// Load is the procedural version of Filter.Recover
 func Load(snapshot *wire.FilterLoad) *Filter {
 	return new(Filter).Recover(snapshot)
 }
 
+// New serves as the constructor of a bloom filter.
 func New(N uint32, P float64, flags wire.BloomUpdateType,
 	tweaks ...uint32) *Filter {
 	P = math.Max(1e-9, math.Min(P, 1))

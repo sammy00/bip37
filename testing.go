@@ -12,6 +12,7 @@ import (
 	btcwire "github.com/btcsuite/btcd/wire"
 )
 
+// NewOutPoint wraps around the btcwire.NewOutPoint to eases testing
 func NewOutPoint(hash []byte, index uint32) *btcwire.OutPoint {
 	var chash chainhash.Hash
 	copy(chash[:], hash)
@@ -19,11 +20,14 @@ func NewOutPoint(hash []byte, index uint32) *btcwire.OutPoint {
 	return btcwire.NewOutPoint(&chash, index)
 }
 
+// Unhexlify wraps the hex.DecodeString but truncate the possible error
+// to ease testing
 func Unhexlify(str string) []byte {
 	out, _ := hex.DecodeString(str)
 	return out
 }
 
+// ReadBlock reads in the block from the testdata
 func ReadBlock(t *testing.T) *btcwire.MsgBlock {
 	fd, err := os.Open(filepath.Join("..", "testdata", "block.json"))
 	if nil != err {
