@@ -3,7 +3,7 @@ package bloom
 import (
 	btcwire "github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"github.com/sammy00/bip37/wire"
+	"github.com/sammyne/bip37/wire"
 )
 
 func (f *Filter) AddOutPoint(out *btcwire.OutPoint) error {

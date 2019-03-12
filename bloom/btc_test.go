@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/sammy00/bip37"
-	"github.com/sammy00/bip37/wire"
+	"github.com/sammyne/bip37"
+	"github.com/sammyne/bip37/wire"
 
 	"github.com/btcsuite/btcd/txscript"
 	btcwire "github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"github.com/sammy00/bip37/bloom"
+	"github.com/sammyne/bip37/bloom"
 )
 
 func TestFilter_AddOutPoint(t *testing.T) {

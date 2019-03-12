@@ -1,7 +1,7 @@
 package bloom
 
 import (
-	"github.com/sammy00/murmur3"
+	"github.com/sammyne/murmur3"
 )
 
 func (f *Filter) add(data []byte) error {

@@ -3,7 +3,7 @@ package bloom
 import (
 	"encoding/binary"
 
-	"github.com/sammy00/bip37/wire"
+	"github.com/sammyne/bip37/wire"
 
 	"github.com/btcsuite/btcd/txscript"
 

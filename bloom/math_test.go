@@ -3,7 +3,7 @@ package bloom_test
 import (
 	"testing"
 
-	"github.com/sammy00/bip37/bloom"
+	"github.com/sammyne/bip37/bloom"
 )
 
 func TestMinUint32(t *testing.T) {

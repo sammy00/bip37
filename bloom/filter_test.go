@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcutil"
-	"github.com/sammy00/bip37"
-	"github.com/sammy00/bip37/bloom"
-	"github.com/sammy00/bip37/wire"
+	"github.com/sammyne/bip37"
+	"github.com/sammyne/bip37/bloom"
+	"github.com/sammyne/bip37/wire"
 )
 
 func TestFilter_Add(t *testing.T) {

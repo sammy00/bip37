@@ -5,11 +5,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/sammy00/bip37/bloom"
-	"github.com/sammy00/bip37/merkle"
+	"github.com/sammyne/bip37/bloom"
+	"github.com/sammyne/bip37/merkle"
 
-	"github.com/sammy00/bip37"
-	"github.com/sammy00/bip37/wire"
+	"github.com/sammyne/bip37"
+	"github.com/sammyne/bip37/wire"
 
 	btcwire "github.com/btcsuite/btcd/wire"
 )

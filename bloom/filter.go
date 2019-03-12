@@ -4,7 +4,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/sammy00/bip37/wire"
+	"github.com/sammyne/bip37/wire"
 )
 
 var ln2Sqr = math.Ln2 * math.Ln2
