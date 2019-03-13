@@ -74,12 +74,14 @@ func Load(snapshot *wire.FilterLoad) *Filter {
 	return new(Filter).Recover(snapshot)
 }
 
-// New serves as the constructor of a bloom filter.
+// New serves as the constructor of a bloom filter according to
+// specification in https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki#bloom-filter-format
 func New(N uint32, P float64, flags wire.BloomUpdateType,
 	tweaks ...uint32) *Filter {
+	// false positive rate
 	P = math.Max(1e-9, math.Min(P, 1))
 
-	// calculates S = -1/ln2Sqr*N*ln(P)/8
+	// calculates size of the filter S = -1/ln2Sqr*N*ln(P)/8
 	S := uint32(-1 / ln2Sqr * float64(N) * math.Log(P) / 8)
 	// normalize S to range (0, MaxFilterSize]
 	S = MinUint32(S, MaxFilterSize)

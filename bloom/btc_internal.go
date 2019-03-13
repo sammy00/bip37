@@ -10,6 +10,8 @@ import (
 	"github.com/btcsuite/btcutil"
 )
 
+// addOutPoint add the COutPoint data for a index-th tx output of
+// tx of hash as txHash
 func (f *Filter) addOutPoint(txHash []byte, index uint32) error {
 	var i [4]byte
 	binary.LittleEndian.PutUint32(i[:], index)
@@ -17,6 +19,7 @@ func (f *Filter) addOutPoint(txHash []byte, index uint32) error {
 	return f.add(append(txHash, i[:]...))
 }
 
+// matchTxAndUpdate implements the matching algorithm as https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki#filter-matching-algorithm
 func (f *Filter) matchTxAndUpdate(tx *btcutil.Tx) bool {
 	// check tx hash
 	txHash := tx.Hash()[:]
