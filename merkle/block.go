@@ -8,11 +8,14 @@ import (
 	"github.com/sammyne/bip37/bloom"
 )
 
+// Block is an intermediate data structure helping to build a merkle block
+// based on a given bloom filter
 type Block struct {
 	*btcutil.Block
 
-	flags    []byte
-	leaves   []*chainhash.Hash
+	flags  []byte
+	leaves []*chainhash.Hash
+	// included signals where a merkle leaf possibly matches the filter
 	included []byte
 	branches []*chainhash.Hash
 	nTx      uint32
@@ -48,22 +51,35 @@ func (block *Block) branchHash(height, idx uint32) *chainhash.Hash {
 
 // traverseAndBuild traverses and builds the depth-first sub-tree of the given
 // height and indexed by idx within that row, where the index of first
-// node of each row is 0
+// node of each row is 0.
+// The defailed algorithm is specified as https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki#constructing-a-partial-merkle-tree-object.
 func (block *Block) traverseAndBuild(height, idx uint32) {
 	var flag byte
+	// For a subtree rooted at the idx-th node of height
+	// 	- (idx<<height) is the index of the leftmost leaf
+	//  - all leaves of index (i>>height==idx) is the leaves of this subtree
+	// The following loop is to find if any leaf of this subtree matching the
+	// filter, thus assigning the proper flag to this node.
+	// In case of no matching leaf, the flag would just remain 0
 	for i := idx << height; (i < block.nTx) && (i>>height == idx) &&
 		(0x01 != flag); i++ {
 		flag = block.included[i]
 	}
 
+	// append the flag for this node
 	block.flags = append(block.flags, flag)
 
+	// The sibling leaves of included leaves must be included.
+	// The hash for parent of non-included leaves must be included.
+	// These 2 cases is base cases
 	if 0 == height || 0x00 == flag {
 		block.branches = append(block.branches, block.branchHash(height, idx))
 		return
 	}
 
+	// left child branch
 	block.traverseAndBuild(height-1, idx<<1)
+	// right child branch
 	if j := (idx << 1) + 1; j < block.calcTreeWidth(height-1) {
 		block.traverseAndBuild(height-1, j)
 	}
@@ -121,6 +137,8 @@ func New(b *wire.MsgBlock, filter *bloom.Filter) (*wire.MsgMerkleBlock,
 	return msg, hits
 }
 
+// Parse validates if the given merkle block is valid, and returns the
+// matching hash if any
 func Parse(block *wire.MsgMerkleBlock) ([]*chainhash.Hash, bool) {
 	// calculate the tree height
 	var height uint32
@@ -134,6 +152,10 @@ func Parse(block *wire.MsgMerkleBlock) ([]*chainhash.Hash, bool) {
 
 	root := parse(&matched, block, 0, height, &j, &k)
 
+	// Check
+	//  - all hashes have been consumed
+	//  - all flag bits have been consumed
+	//  - the merkle root matches
 	ok := len(block.Hashes) == k &&
 		len(block.Flags) == (j+7)/8 &&
 		0 == (block.Flags[j>>3]>>uint(j%8)) &&
@@ -147,6 +169,8 @@ func Parse(block *wire.MsgMerkleBlock) ([]*chainhash.Hash, bool) {
 	return matched, ok
 }
 
+// calcTreeWidth calculates the number of nodes at height for a tree
+// with nTx leaves
 func calcTreeWidth(nTx, height uint32) uint32 {
 	return (nTx + (1 << height) - 1) >> height
 }
@@ -162,12 +186,12 @@ func parse(matched *[]*chainhash.Hash, block *wire.MsgMerkleBlock,
 
 	flag := (block.Flags[*j>>3] >> uint(*j%8)) & 0x01
 	*j++
-	if 0 == flag {
+	if 0 == flag { // the non-included nodes
 		hash := block.Hashes[*k]
 		*k++
 
 		return hash
-	} else if 0 == height {
+	} else if 0 == height { // a included leaf
 		hash := block.Hashes[*k]
 		*k++
 		*matched = append(*matched, hash)
@@ -182,6 +206,7 @@ func parse(matched *[]*chainhash.Hash, block *wire.MsgMerkleBlock,
 	}
 
 	childIdx++
+	// the missing right branch is replaced with its left sibling
 	if childIdx >= calcTreeWidth(block.Transactions, height-1) {
 		return blockchain.HashMerkleBranches(L, L)
 	}
